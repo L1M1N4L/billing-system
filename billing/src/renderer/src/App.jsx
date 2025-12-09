@@ -7,6 +7,7 @@ import LinesPage from './pages/database/LinesPage';
 import TenantsPage from './pages/database/TenantsPage';
 import PhonebookPage from './pages/database/PhonebookPage';
 import SettingsPage from './pages/settings/SettingsPage';
+import CostsPage from './pages/database/CostsPage';
 
 import ReportsPage from './pages/reports/ReportsPage';
 import AnalyticsPage from './pages/AnalyticsPage';
@@ -24,6 +25,7 @@ function App() {
           <Route path="reports" element={<ReportsPage />} />
           <Route path="charts" element={<AnalyticsPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="costs" element={<CostsPage />} />
         </Route>
       </Routes>
     </HashRouter>

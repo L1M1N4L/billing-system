@@ -173,47 +173,82 @@ export default function AnalyticsPage() {
                 </div>
             </div>
 
-            {/* Top Extensions */}
-            <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
-                <h3 className="text-lg font-semibold mb-6">Top Spenders (Extensions)</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {/* Top Extensions & Destinations */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                    <h3 className="text-lg font-semibold mb-6">Top Spenders (Extensions)</h3>
+                    <div className="flex flex-col md:flex-row gap-8">
+                        <div className="h-64 flex-1">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={stats.extensionData}
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
+                                        paddingAngle={5}
+                                        dataKey="cost"
+                                    >
+                                        {stats.extensionData.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        </div>
+                        <div className="space-y-3 flex-1 overflow-y-auto max-h-64 pr-2">
+                            {stats.extensionData.map((ext, idx) => (
+                                <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
+                                    <div className="flex items-center">
+                                        <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
+                                        <span className="font-medium">ext {ext.extension}</span>
+                                    </div>
+                                    <span className="font-bold">${ext.cost.toFixed(2)}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                    <h3 className="text-lg font-semibold mb-6">Top Destinations (Dialed)</h3>
                     <div className="h-64">
                         <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie
-                                    data={stats.extensionData}
-                                    cx="50%"
-                                    cy="50%"
-                                    innerRadius={60}
-                                    outerRadius={80}
-                                    paddingAngle={5}
-                                    dataKey="cost"
-                                >
-                                    {stats.extensionData.map((entry, index) => (
+                            <BarChart data={stats.destinationData} layout="vertical">
+                                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                                <XAxis type="number" hide />
+                                <YAxis dataKey="number" type="category" width={80} tick={{ fontSize: 12 }} />
+                                <Tooltip cursor={{ fill: '#f9fafb' }} />
+                                <Bar dataKey="count" fill="#8884d8" radius={[0, 4, 4, 0]} barSize={20}>
+                                    {stats.destinationData?.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
-                                </Pie>
-                                <Tooltip />
-                                <Legend />
-                            </PieChart>
+                                </Bar>
+                            </BarChart>
                         </ResponsiveContainer>
-                    </div>
-                    <div className="space-y-4">
-                        {stats.extensionData.map((ext, idx) => (
-                            <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                <div className="flex items-center">
-                                    <div className="w-3 h-3 rounded-full mr-3" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
-                                    <span className="font-medium text-gray-700">EXT {ext.extension}</span>
-                                </div>
-                                <div className="text-right">
-                                    <div className="font-bold text-gray-900">${ext.cost.toFixed(2)}</div>
-                                    <div className="text-xs text-gray-500">{ext.count} calls</div>
-                                </div>
-                            </div>
-                        ))}
                     </div>
                 </div>
             </div>
+
+            {/* Department Usage */}
+            {stats.departmentData?.length > 0 && (
+                <div className="bg-white p-6 rounded-xl border border-gray-100 shadow-sm">
+                    <h3 className="text-lg font-semibold mb-4">Department Cost Breakdown</h3>
+                    <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={stats.departmentData}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis dataKey="name" />
+                                <YAxis />
+                                <Tooltip />
+                                <Bar dataKey="cost" fill="#82ca9d" radius={[4, 4, 0, 0]} />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            )}
 
         </div>
     );

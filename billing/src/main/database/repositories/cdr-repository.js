@@ -10,9 +10,9 @@ async function findByDateRange(startDate, endDate) {
     // ISO date strings expected
     return await dbManager.find(COLLECTION, {
         selector: {
-            date: { $gte: startDate, $lte: endDate }
+            timestamp: { $gte: startDate, $lte: endDate }
         },
-        sort: [{ date: 'desc' }]
+        sort: [{ timestamp: 'desc' }]
     });
 }
 

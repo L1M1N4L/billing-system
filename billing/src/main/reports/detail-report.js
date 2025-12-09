@@ -4,8 +4,9 @@ async function generate(criteria) {
     const { startDate, endDate, extension, tenant } = criteria;
 
     // 1. Normalize Date format (UI sends YYYY-MM-DD, DB uses YYYYMMDD)
-    const dbStartDate = startDate.replace(/-/g, '');
-    const dbEndDate = endDate.replace(/-/g, '');
+    // 1. Normalize Date format (UI sends YYYY-MM-DD, DB uses ISO string)
+    const dbStartDate = `${startDate}T00:00:00.000Z`;
+    const dbEndDate = `${endDate}T23:59:59.999Z`;
 
     // 2. Fetch Data
     let cdrs = await cdrRepo.findByDateRange(dbStartDate, dbEndDate);

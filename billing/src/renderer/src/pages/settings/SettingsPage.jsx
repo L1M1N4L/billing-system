@@ -19,6 +19,7 @@ export default function SettingsPage() {
         },
         app: {
             currency: '$',
+            defaultRate: 0,
             dateFormat: 'YYYY-MM-DD',
             theme: 'light'
         }
@@ -163,6 +164,18 @@ export default function SettingsPage() {
                         onChange={(e) => handleChange('app', 'currency', e.target.value)}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
                         placeholder="$"
+                        maxLength={3}
+                    />
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700">Default Rate</label>
+                    <input
+                        type="number"
+                        value={settings.app.defaultRate}
+                        onChange={(e) => handleChange('app', 'defaultRate', parseFloat(e.target.value))}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+                        placeholder="0.00"
+                        step="0.01"
                     />
                 </div>
                 <div>
@@ -175,6 +188,17 @@ export default function SettingsPage() {
                         <option value="YYYY-MM-DD">YYYY-MM-DD</option>
                         <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                         <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-sm font-medium text-gray-700">Theme</label>
+                    <select
+                        value={settings.app.theme}
+                        onChange={(e) => handleChange('app', 'theme', e.target.value)}
+                        className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
+                    >
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
                     </select>
                 </div>
             </div>

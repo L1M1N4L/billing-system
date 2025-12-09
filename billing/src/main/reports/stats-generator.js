@@ -32,6 +32,8 @@ async function getStats(range) {
     const dailyVolume = {}; // date -> count
     const dailyCost = {}; // date -> cost
     const topExtensions = {}; // ext -> { count, cost }
+    const topDestinations = {}; // number -> { count, cost }
+    const departmentUsage = {}; // division -> { count, cost }
 
     docs.forEach(doc => {
         const date = new Date(doc.timestamp || doc.createdAt);
@@ -54,6 +56,22 @@ async function getStats(range) {
         }
         topExtensions[ext].count++;
         topExtensions[ext].cost += (doc.cost || 0);
+
+        // Top Destinations (Dialed Number)
+        const dest = doc.dialedNumber || 'Unknown';
+        if (!topDestinations[dest]) {
+            topDestinations[dest] = { number: dest, count: 0, cost: 0 };
+        }
+        topDestinations[dest].count++;
+        topDestinations[dest].cost += (doc.cost || 0);
+
+        // Department Usage
+        const dept = doc.division || 'Unassigned';
+        if (!departmentUsage[dept]) {
+            departmentUsage[dept] = { name: dept, count: 0, cost: 0 };
+        }
+        departmentUsage[dept].count++;
+        departmentUsage[dept].cost += (doc.cost || 0);
     });
 
     // Format for Charts
@@ -72,10 +90,19 @@ async function getStats(range) {
         .sort((a, b) => b.cost - a.cost)
         .slice(0, 5); // Top 5
 
+    const destinationData = Object.values(topDestinations)
+        .sort((a, b) => b.count - a.count) // Sort by volume
+        .slice(0, 5);
+
+    const departmentData = Object.values(departmentUsage)
+        .sort((a, b) => b.cost - a.cost);
+
     return {
         hourlyData,
         dailyData,
         extensionData,
+        destinationData,
+        departmentData,
         totals: {
             calls: docs.length,
             cost: docs.reduce((acc, curr) => acc + (curr.cost || 0), 0),

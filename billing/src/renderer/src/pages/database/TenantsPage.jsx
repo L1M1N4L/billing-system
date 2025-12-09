@@ -33,7 +33,8 @@ export default function TenantsPage() {
         try {
             const result = await window.electron.db.find('tenants', {
                 selector: { name: { $gte: null } },
-                sort: [{ name: 'asc' }]
+                sort: [{ name: 'asc' }],
+                use_index: 'idx-tenant-name'
             });
             setTenants(result.docs || []);
         } catch (err) {

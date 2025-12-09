@@ -23,7 +23,8 @@ export default function LinesPage() {
         try {
             const result = await window.electron.db.find('lines', {
                 selector: { lineNumber: { $gte: null } },
-                sort: [{ lineNumber: 'asc' }]
+                sort: [{ lineNumber: 'asc' }],
+                use_index: 'idx-line-number'
             });
             setLines(result.docs || []);
         } catch (error) {

@@ -32,7 +32,8 @@ export default function PhonebookPage() {
         try {
             const result = await window.electron.db.find('phonebook', {
                 selector: { name: { $gte: null } },
-                sort: [{ name: 'asc' }]
+                sort: [{ name: 'asc' }],
+                use_index: 'idx-phonebook-name'
             });
             setContacts(result.docs || []);
         } catch (err) {

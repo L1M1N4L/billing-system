@@ -8,7 +8,8 @@ import {
     BookOpen,
     Settings,
     BarChart3,
-    FileText
+    FileText,
+    DollarSign
 } from 'lucide-react';
 import logo from '../../assets/logo-grey.svg';
 
@@ -21,6 +22,7 @@ export default function Sidebar() {
         { to: '/phonebook', icon: BookOpen, label: 'Phonebook' },
         { to: '/reports', icon: FileText, label: 'Reports' },
         { to: '/charts', icon: BarChart3, label: 'Analytics' },
+        { to: '/costs', icon: DollarSign, label: 'Tariffs & Costs' },
         { to: '/settings', icon: Settings, label: 'Settings' },
     ];
 

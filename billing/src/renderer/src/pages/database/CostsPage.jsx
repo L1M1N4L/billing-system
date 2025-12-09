@@ -34,7 +34,8 @@ export default function CostsPage() {
         try {
             const result = await window.electron.db.find('costs', {
                 selector: { code: { $gte: null } },
-                sort: [{ code: 'asc' }]
+                sort: [{ code: 'asc' }],
+                use_index: 'idx-cost-code'
             });
             setCosts(result.docs || []);
         } catch (err) {
