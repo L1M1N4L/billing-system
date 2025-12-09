@@ -1,0 +1,53 @@
+{
+  "name": "transtel-billing",
+  "private": true,
+  "version": "1.0.0",
+  "main": "src/main/index.js",
+  "description": "Offline-first PABX billing application",
+  "author": "Transtel Communications",
+  "scripts": {
+    "dev": "cross-env NODE_ENV=development concurrently -k \"vite\" \"wait-on tcp:5200 && electron .\"",
+    "start": "npm run dev",
+    "build": "vite build && electron-builder",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "electron-log": "^5.4.3",
+    "electron-squirrel-startup": "^1.0.1",
+    "electron-store": "^8.1.0",
+    "electron-updater": "^6.6.2",
+    "exceljs": "^4.4.0",
+    "lucide-react": "^0.556.0",
+    "pdfkit": "^0.17.2",
+    "pouchdb": "^9.0.0",
+    "pouchdb-find": "^9.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-hook-form": "^7.68.0",
+    "react-router-dom": "^7.10.1",
+    "recharts": "^3.5.1",
+    "uuid": "^13.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.22",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^39.2.6",
+    "electron-builder": "^26.0.12",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "postcss": "^8.5.6",
+    "rimraf": "^6.1.2",
+    "tailwindcss": "^3.4.17",
+    "vite": "^5.4.11",
+    "wait-on": "^9.0.3"
+  }
+}
