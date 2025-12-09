@@ -5,13 +5,27 @@ import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
 import { useForm } from 'react-hook-form';
 
+import { useSettings } from '../../context/SettingsContext';
+
 export default function CostsPage() {
+    const { settings } = useSettings();
+    const currency = settings.app?.currency || '$';
     const [costs, setCosts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCost, setEditingCost] = useState(null);
 
     const { register, handleSubmit, reset, setValue } = useForm();
+
+    // ... useEffects ...
+
+    // columns definition moved inside component
+    const columns = [
+        { header: 'Prefix/Code', accessor: 'code' },
+        { header: 'Destination', accessor: 'destination' },
+        { header: 'Rate (Cost/Min)', accessor: 'rate', render: (row) => `${currency}${row.rate?.toFixed(2)}` },
+        { header: 'Pulse (Init/Sub)', render: (row) => `${row.initialPulse}s / ${row.subsequentPulse}s` },
+    ];
 
     useEffect(() => {
         loadCosts();
@@ -86,12 +100,8 @@ export default function CostsPage() {
         }
     };
 
-    const columns = [
-        { header: 'Prefix/Code', accessor: 'code' },
-        { header: 'Destination', accessor: 'destination' },
-        { header: 'Rate (Cost/Min)', accessor: 'rate', render: (row) => `$${row.rate?.toFixed(2)}` },
-        { header: 'Pulse (Init/Sub)', render: (row) => `${row.initialPulse}s / ${row.subsequentPulse}s` },
-    ];
+    // Old columns removed, now defined inside
+    // const handleDelete = ...
 
     return (
         <div className="space-y-6">

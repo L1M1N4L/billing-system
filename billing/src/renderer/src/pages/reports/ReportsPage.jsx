@@ -3,8 +3,11 @@ import { FileText, Printer, Eye, Download, Search, Filter, Calendar as CalIcon, 
 import Button from '../../components/common/Button';
 import { useForm } from 'react-hook-form';
 import { format, parse } from 'date-fns';
+import { useSettings } from '../../context/SettingsContext';
 
 export default function ReportsPage() {
+    const { settings } = useSettings();
+    const currency = settings.app?.currency || '$';
     const [reportResult, setReportResult] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const { register, handleSubmit, watch } = useForm({
@@ -200,7 +203,7 @@ export default function ReportsPage() {
                                     <input {...register('minDuration')} type="number" placeholder="0" className="w-full rounded-lg border-gray-200 text-sm bg-gray-50/50 focus:border-blue-500 focus:ring-blue-500" />
                                 </div>
                                 <div>
-                                    <InputLabel label="Min Cost ($)" />
+                                    <InputLabel label={`Min Cost (${currency})`} />
                                     <input {...register('minCost')} type="number" step="0.01" placeholder="0.00" className="w-full rounded-lg border-gray-200 text-sm bg-gray-50/50 focus:border-blue-500 focus:ring-blue-500" />
                                 </div>
                                 <div className="col-span-2">
@@ -264,7 +267,7 @@ export default function ReportsPage() {
                                         </div>
                                         <div className="text-right">
                                             <div className="text-2xl font-bold text-gray-900">
-                                                ${reportResult.data.summary.totalCost?.toFixed(2)}
+                                                {currency}{reportResult.data.summary.totalCost?.toFixed(2)}
                                             </div>
                                             <p className="text-xs text-gray-500 uppercase tracking-wide font-medium">Total Cost</p>
                                         </div>
@@ -303,14 +306,14 @@ export default function ReportsPage() {
                                                             <td className="py-2 px-6 font-medium text-gray-900">{row.extension}</td>
                                                             <td className="py-2 px-6 text-gray-600 font-mono tracking-tight">{row.dialedNumber}</td>
                                                             <td className="text-right py-2 px-6 text-gray-600">{row.duration}s</td>
-                                                            <td className="text-right py-2 px-6 font-medium text-gray-900">${row.cost?.toFixed(2)}</td>
+                                                            <td className="text-right py-2 px-6 font-medium text-gray-900">{currency}{row.cost?.toFixed(2)}</td>
                                                         </>
                                                     ) : (
                                                         <>
                                                             <td className="py-3 px-6 font-medium text-gray-900">{row.key}</td>
                                                             <td className="text-right py-3 px-6 text-gray-600">{row.calls}</td>
                                                             <td className="text-right py-3 px-6 text-gray-600">{row.duration}s</td>
-                                                            <td className="text-right py-3 px-6 font-bold text-gray-900">${row.cost?.toFixed(2)}</td>
+                                                            <td className="text-right py-3 px-6 font-bold text-gray-900">{currency}{row.cost?.toFixed(2)}</td>
                                                         </>
                                                     )}
                                                 </tr>

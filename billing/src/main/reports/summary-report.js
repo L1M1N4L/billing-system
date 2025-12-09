@@ -4,9 +4,8 @@ async function generate(criteria) {
     const { startDate, endDate, groupBy = 'extension' } = criteria;
 
     // 1. Normalize Date format
-    // 1. Normalize Date format
-    const dbStartDate = `${startDate}T00:00:00.000Z`;
-    const dbEndDate = `${endDate}T23:59:59.999Z`;
+    const dbStartDate = startDate.replace(/-/g, '');
+    const dbEndDate = endDate.replace(/-/g, '');
 
     // 2. Fetch All Data for range
     const cdrs = await cdrRepo.findByDateRange(dbStartDate, dbEndDate);

@@ -5,6 +5,8 @@ const smdrListener = require('./smdr/listener');
 const reportGenerator = require('./reports/generator');
 const syncManager = require('./sync/sync-manager');
 const updater = require('./updater/auto-updater');
+const store = require('./store'); // Import at top level
+const windowManager = require('./window-manager'); // Import window manager
 
 function setupIpcHandlers() {
     // System Info
@@ -73,6 +75,14 @@ function setupIpcHandlers() {
         return smdrListener.getStatus();
     });
 
+    // Forward SMDR status changes
+    smdrListener.events.on('status-change', (status) => {
+        const win = windowManager.getMainWindow();
+        if (win && !win.isDestroyed()) {
+            win.webContents.send('smdr:status-change', status);
+        }
+    });
+
     // Reports
     ipcMain.handle('report:generate', async (event, type, criteria) => {
         return await reportGenerator.generate(type, criteria);
@@ -94,8 +104,7 @@ function setupIpcHandlers() {
 
     // Settings
     // Settings using electron-store
-    const Store = require('electron-store');
-    const store = new Store();
+    // stored declared at top
 
     ipcMain.handle('settings:get', async (event, key) => {
         return store.get(key);
@@ -105,7 +114,13 @@ function setupIpcHandlers() {
         store.set(key, value);
         // If SMDR settings changed, we might need to restart the listener
         if (key.startsWith('smdr')) {
-            // Optional: restart listener if running
+            // Restart listener logic
+            const smdrStatus = smdrListener.getStatus();
+            if (smdrStatus.running) {
+                log.info('SMDR settings changed, restarting listener...');
+                await smdrListener.stop();
+                await smdrListener.start(value);
+            }
         }
         return true;
     });

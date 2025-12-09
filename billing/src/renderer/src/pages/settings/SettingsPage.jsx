@@ -1,44 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Server, Bell, Shield, Database, Monitor } from 'lucide-react';
+import { Save, Server, Bell, Monitor } from 'lucide-react';
 import Button from '../../components/common/Button';
+import { useSettings } from '../../context/SettingsContext';
 
 export default function SettingsPage() {
+    const { settings: globalSettings, updateSettings } = useSettings();
     const [activeTab, setActiveTab] = useState('smdr');
     const [loading, setLoading] = useState(false);
-    const [settings, setSettings] = useState({
-        smdr: {
-            mode: 'server', // server, client
-            port: 3000,
-            host: '0.0.0.0', // or PABX IP if client
-            protocol: 'standard'
-        },
-        alarms: {
-            enabled: false,
-            email: '',
-            timeout: 300 // seconds
-        },
-        app: {
-            currency: '$',
-            defaultRate: 0,
-            dateFormat: 'YYYY-MM-DD',
-            theme: 'light'
-        }
+    const [smdrStatus, setSmdrStatus] = useState({ running: false, connected: false });
+
+    // Local state for editing form
+    const [formSettings, setFormSettings] = useState({
+        smdr: { mode: 'server', port: 3000, host: '0.0.0.0' },
+        alarms: { enabled: false, email: '', timeout: 300 },
+        app: { currency: '$', defaultRate: 0, theme: 'light', dateFormat: 'YYYY-MM-DD' }
     });
 
     useEffect(() => {
-        loadSettings();
+        if (globalSettings) {
+            setFormSettings(prev => ({
+                smdr: { ...prev.smdr, ...globalSettings.smdr },
+                alarms: { ...prev.alarms, ...globalSettings.alarms },
+                app: { ...prev.app, ...globalSettings.app }
+            }));
+        }
+    }, [globalSettings]);
+
+    useEffect(() => {
+        // Initial status fetch
+        if (window.electron?.smdr) {
+            window.electron.smdr.getStatus().then(setSmdrStatus);
+        }
+
+        // Listen for updates
+        const removeListener = window.electron?.ipcRenderer?.on('smdr:status-change', (status) => {
+            setSmdrStatus(prev => ({ ...prev, ...status }));
+        });
+
+        return () => {
+            if (removeListener) removeListener();
+        };
     }, []);
 
-    const loadSettings = async () => {
-        // Load each section
-        const smdr = await window.electron.settings.get('smdr') || settings.smdr;
-        const alarms = await window.electron.settings.get('alarms') || settings.alarms;
-        const app = await window.electron.settings.get('app') || settings.app;
-        setSettings({ smdr, alarms, app });
+    const handleStartSMDR = async () => {
+        try {
+            await window.electron.smdr.start(formSettings.smdr);
+            // Status will update automatically via listener
+        } catch (error) {
+            console.error('Failed to start SMDR:', error);
+            const errorMessage = error.message || 'Unknown error occurred';
+            alert(`Failed to start SMDR service: ${errorMessage}`);
+        }
+    };
+
+    const handleStopSMDR = async () => {
+        try {
+            await window.electron.smdr.stop();
+        } catch (error) {
+            console.error('Failed to stop SMDR:', error);
+        }
     };
 
     const handleChange = (section, key, value) => {
-        setSettings(prev => ({
+        setFormSettings(prev => ({
             ...prev,
             [section]: {
                 ...prev[section],
@@ -50,9 +74,24 @@ export default function SettingsPage() {
     const handleSave = async () => {
         setLoading(true);
         try {
-            await window.electron.settings.set('smdr', settings.smdr);
-            await window.electron.settings.set('alarms', settings.alarms);
-            await window.electron.settings.set('app', settings.app);
+            const settingsToSave = {
+                smdr: {
+                    ...formSettings.smdr,
+                    port: parseInt(formSettings.smdr.port) || 3000
+                },
+                alarms: {
+                    ...formSettings.alarms,
+                    timeout: parseInt(formSettings.alarms.timeout) || 300
+                },
+                app: {
+                    ...formSettings.app,
+                    defaultRate: parseFloat(formSettings.app.defaultRate) || 0
+                }
+            };
+
+            await updateSettings('smdr', settingsToSave.smdr);
+            await updateSettings('alarms', settingsToSave.alarms);
+            await updateSettings('app', settingsToSave.app);
             alert('Settings saved successfully!');
         } catch (error) {
             console.error('Failed to save settings:', error);
@@ -64,12 +103,20 @@ export default function SettingsPage() {
 
     const renderSMDRSettings = () => (
         <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900 border-b pb-2">Communication Parameters</h3>
+            <div className="flex justify-between items-center border-b pb-2">
+                <h3 className="text-lg font-medium text-gray-900">Communication Parameters</h3>
+                <div className="flex items-center space-x-2">
+                    <span className={`flex h-3 w-3 rounded-full ${smdrStatus.connected ? 'bg-green-500' : (smdrStatus.running ? 'bg-orange-400' : 'bg-gray-300')}`}></span>
+                    <span className="text-sm font-medium text-gray-600">
+                        {smdrStatus.connected ? 'Connected' : (smdrStatus.running ? 'Listening' : 'Stopped')}
+                    </span>
+                </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Connection Mode</label>
                     <select
-                        value={settings.smdr.mode}
+                        value={formSettings.smdr.mode}
                         onChange={(e) => handleChange('smdr', 'mode', e.target.value)}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
                     >
@@ -82,12 +129,12 @@ export default function SettingsPage() {
                     </p>
                 </div>
 
-                {settings.smdr.mode === 'client' && (
+                {formSettings.smdr.mode === 'client' && (
                     <div>
                         <label className="block text-sm font-medium text-gray-700">PABX IP Address</label>
                         <input
                             type="text"
-                            value={settings.smdr.host}
+                            value={formSettings.smdr.host}
                             onChange={(e) => handleChange('smdr', 'host', e.target.value)}
                             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
                             placeholder="192.168.1.10"
@@ -97,16 +144,36 @@ export default function SettingsPage() {
 
                 <div>
                     <label className="block text-sm font-medium text-gray-700">
-                        {settings.smdr.mode === 'serial' ? 'Baud Rate' : 'Port Number'}
+                        {formSettings.smdr.mode === 'serial' ? 'Baud Rate' : 'Port Number'}
                     </label>
                     <input
                         type="number"
-                        value={settings.smdr.port}
-                        onChange={(e) => handleChange('smdr', 'port', parseInt(e.target.value))}
+                        value={formSettings.smdr.port}
+                        onChange={(e) => handleChange('smdr', 'port', e.target.value)}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
                         placeholder="3000"
                     />
                 </div>
+            </div>
+
+            <div className="flex space-x-3 pt-4 border-t">
+                <Button
+                    onClick={handleStartSMDR}
+                    disabled={smdrStatus.running}
+                    className={smdrStatus.running ? 'bg-gray-400 opacity-50 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'}
+                    icon={Server}
+                >
+                    {smdrStatus.running ? 'Service Running' : 'Start Service'}
+                </Button>
+
+                {smdrStatus.running && (
+                    <Button
+                        onClick={handleStopSMDR}
+                        className="bg-red-600 hover:bg-red-700"
+                    >
+                        Stop Service
+                    </Button>
+                )}
             </div>
         </div>
     );
@@ -117,7 +184,7 @@ export default function SettingsPage() {
             <div className="flex items-center space-x-2 mb-4">
                 <input
                     type="checkbox"
-                    checked={settings.alarms.enabled}
+                    checked={formSettings.alarms.enabled}
                     onChange={(e) => handleChange('alarms', 'enabled', e.target.checked)}
                     className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4"
                 />
@@ -129,9 +196,9 @@ export default function SettingsPage() {
                     <label className="block text-sm font-medium text-gray-700">Alert Email Address</label>
                     <input
                         type="email"
-                        value={settings.alarms.email}
+                        value={formSettings.alarms.email}
                         onChange={(e) => handleChange('alarms', 'email', e.target.value)}
-                        disabled={!settings.alarms.enabled}
+                        disabled={!formSettings.alarms.enabled}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2 disabled:bg-gray-100"
                         placeholder="admin@example.com"
                     />
@@ -140,9 +207,9 @@ export default function SettingsPage() {
                     <label className="block text-sm font-medium text-gray-700">Timeout (Seconds)</label>
                     <input
                         type="number"
-                        value={settings.alarms.timeout}
-                        onChange={(e) => handleChange('alarms', 'timeout', parseInt(e.target.value))}
-                        disabled={!settings.alarms.enabled}
+                        value={formSettings.alarms.timeout}
+                        onChange={(e) => handleChange('alarms', 'timeout', e.target.value)}
+                        disabled={!formSettings.alarms.enabled}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2 disabled:bg-gray-100"
                         placeholder="300"
                     />
@@ -160,7 +227,7 @@ export default function SettingsPage() {
                     <label className="block text-sm font-medium text-gray-700">Currency Symbol</label>
                     <input
                         type="text"
-                        value={settings.app.currency}
+                        value={formSettings.app.currency}
                         onChange={(e) => handleChange('app', 'currency', e.target.value)}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
                         placeholder="$"
@@ -171,8 +238,8 @@ export default function SettingsPage() {
                     <label className="block text-sm font-medium text-gray-700">Default Rate</label>
                     <input
                         type="number"
-                        value={settings.app.defaultRate}
-                        onChange={(e) => handleChange('app', 'defaultRate', parseFloat(e.target.value))}
+                        value={formSettings.app.defaultRate}
+                        onChange={(e) => handleChange('app', 'defaultRate', e.target.value)}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
                         placeholder="0.00"
                         step="0.01"
@@ -181,7 +248,7 @@ export default function SettingsPage() {
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Date Format</label>
                     <select
-                        value={settings.app.dateFormat}
+                        value={formSettings.app.dateFormat}
                         onChange={(e) => handleChange('app', 'dateFormat', e.target.value)}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
                     >
@@ -193,7 +260,7 @@ export default function SettingsPage() {
                 <div>
                     <label className="block text-sm font-medium text-gray-700">Theme</label>
                     <select
-                        value={settings.app.theme}
+                        value={formSettings.app.theme}
                         onChange={(e) => handleChange('app', 'theme', e.target.value)}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-2"
                     >

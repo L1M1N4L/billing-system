@@ -4,10 +4,13 @@ import {
     LineChart, Line, PieChart, Pie, Cell
 } from 'recharts';
 import { Calendar, TrendingUp, Phone, Clock, DollarSign, Database } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export default function AnalyticsPage() {
+    const { settings } = useSettings();
+    const currency = settings.app?.currency || '$';
     const [range, setRange] = useState('week');
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -126,7 +129,7 @@ export default function AnalyticsPage() {
                     </div>
                     <div>
                         <div className="text-sm text-gray-500">Total Cost</div>
-                        <div className="text-2xl font-bold">${stats.totals.cost.toFixed(2)}</div>
+                        <div className="text-2xl font-bold">{currency}{stats.totals.cost.toFixed(2)}</div>
                     </div>
                 </div>
             </div>
@@ -205,7 +208,7 @@ export default function AnalyticsPage() {
                                         <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
                                         <span className="font-medium">ext {ext.extension}</span>
                                     </div>
-                                    <span className="font-bold">${ext.cost.toFixed(2)}</span>
+                                    <span className="font-bold">{currency}{ext.cost.toFixed(2)}</span>
                                 </div>
                             ))}
                         </div>

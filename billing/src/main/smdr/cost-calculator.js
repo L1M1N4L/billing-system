@@ -1,7 +1,7 @@
 const log = require('electron-log');
 const costRepo = require('../database/repositories/cost-repository');
-const Store = require('electron-store');
-const store = new Store();
+
+const store = require('../store');
 
 // Simple implementation for MVP
 async function calculateCost(cdr) {
@@ -23,7 +23,9 @@ async function calculateCost(cdr) {
         let bestMatch = null;
         let maxLen = -1;
 
+        // "Remake": Standard Longest Prefix Match against "Cost Zones" (tariffs)
         for (const rate of rates) {
+            // If rate.code is empty, skip
             if (rate.code && dialed.startsWith(rate.code)) {
                 if (rate.code.length > maxLen) {
                     maxLen = rate.code.length;
@@ -34,21 +36,22 @@ async function calculateCost(cdr) {
 
         let cost = 0;
         let usedRate = defaultRate;
+        let source = 'default';
 
         if (bestMatch) {
-            usedRate = bestMatch.rate || 0;
-            // TODO: Implement sophisticated pulse logic (initial/subsequent) if needed
-            // For now, simple rate * minutes
+            usedRate = parseFloat(bestMatch.rate) || 0;
             cost = usedRate * durationMin;
+            source = 'tariff';
         } else {
+            // No tariff match found, use default rate
             cost = defaultRate * durationMin;
         }
 
         return {
             cost: parseFloat(cost.toFixed(4)),
-            pulses: durationMin, // Simplified
+            pulses: durationMin,
             rateApplied: usedRate,
-            rateSource: bestMatch ? 'tariff' : 'default'
+            rateSource: source
         };
     } catch (error) {
         log.error('Error calculating cost:', error);

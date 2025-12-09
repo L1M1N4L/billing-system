@@ -1,9 +1,7 @@
 const { BrowserWindow, app, screen } = require('electron');
 const path = require('path');
-const Store = require('electron-store');
+const store = require('./store');
 const isDev = process.env.NODE_ENV === 'development';
-
-const store = new Store();
 
 let mainWindow = null;
 

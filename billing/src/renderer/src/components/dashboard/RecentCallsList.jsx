@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { PhoneIncoming, PhoneOutgoing, Clock } from 'lucide-react';
 import { format } from 'date-fns';
 
+import { useSettings } from '../../context/SettingsContext';
+
 export default function RecentCallsList() {
+    const { settings } = useSettings();
+    const currency = settings.app?.currency || '$';
     const [calls, setCalls] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -54,7 +58,7 @@ export default function RecentCallsList() {
                         </div>
                     </div>
                     <div className="text-right">
-                        <p className="text-sm font-semibold text-gray-900">${(call.cost || 0).toFixed(2)}</p>
+                        <p className="text-sm font-semibold text-gray-900">{currency}{(call.cost || 0).toFixed(2)}</p>
                         <p className="text-xs text-gray-500 flex items-center justify-end">
                             <Clock className="w-3 h-3 mr-1" />
                             {call.durationSeconds}s

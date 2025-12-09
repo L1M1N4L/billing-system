@@ -3,9 +3,12 @@ const log = require('electron-log');
 const { STX, ETX, ACK, NAK, ENQ, RECORD_TYPES } = require('./pms-constants');
 const parser = require('./parser');
 const processor = require('./processor');
+const EventEmitter = require('events');
 
+const eventEmitter = new EventEmitter();
 let server = null;
 let isRunning = false;
+let activeConnections = 0;
 let config = { port: 5008, host: '0.0.0.0' };
 
 // Buffer for incoming data to handle fragmented packets
@@ -14,39 +17,84 @@ let receiveBuffer = Buffer.alloc(0);
 async function start(newConfig) {
     if (isRunning) return false;
 
-    if (newConfig) config = { ...config, ...newConfig };
+    if (newConfig) {
+        config = { ...config, ...newConfig };
+        if (config.port) config.port = parseInt(config.port, 10);
+    }
+
+    const mode = config.mode || 'server';
 
     return new Promise((resolve, reject) => {
-        server = net.createServer((socket) => {
-            log.info('PMS Client connected:', socket.remoteAddress);
+        if (mode === 'server') {
+            // SERVER MODE
+            // Listen on 0.0.0.0 to accept connections from PABX
+            server = net.createServer((socket) => {
+                log.info('PMS Client connected:', socket.remoteAddress);
+                activeConnections++;
+                eventEmitter.emit('status-change', { connected: true, activeConnections });
 
-            socket.on('data', async (data) => {
-                // Append new data to buffer
-                receiveBuffer = Buffer.concat([receiveBuffer, data]);
+                socket.on('close', () => {
+                    activeConnections--;
+                    eventEmitter.emit('status-change', { connected: activeConnections > 0, activeConnections });
+                });
 
-                processBuffer(socket);
+                setupSocketHandlers(socket);
             });
 
-            socket.on('error', (err) => {
-                log.error('PMS Socket error:', err);
+            server.on('error', (err) => {
+                log.error('PMS Server error:', err);
+                reject(err);
             });
 
-            socket.on('close', () => {
-                log.info('PMS Client disconnected');
-                receiveBuffer = Buffer.alloc(0);
+            server.listen(config.port, '0.0.0.0', () => {
+                log.info(`PMS Server listening on 0.0.0.0:${config.port}`);
+                isRunning = true;
+                resolve(true);
             });
-        });
+        } else {
+            // CLIENT MODE
+            // Connect to PABX IP
+            const clientSocket = new net.Socket();
+            server = clientSocket;
 
-        server.on('error', (err) => {
-            log.error('PMS Server error:', err);
-            reject(err);
-        });
+            clientSocket.connect(config.port, config.host, () => {
+                log.info(`PMS Client connected to ${config.host}:${config.port}`);
+                isRunning = true;
+                activeConnections = 1;
+                eventEmitter.emit('status-change', { connected: true, activeConnections: 1 });
+                resolve(true);
+            });
 
-        server.listen(config.port, config.host, () => {
-            log.info(`PMS Server listening on ${config.host}:${config.port}`);
-            isRunning = true;
-            resolve(true);
-        });
+            setupSocketHandlers(clientSocket);
+
+            clientSocket.on('error', (err) => {
+                log.error('PMS Client Connection error:', err);
+                if (!isRunning) reject(err);
+            });
+
+            clientSocket.on('close', () => {
+                log.info('PMS Connection closed');
+                isRunning = false;
+                activeConnections = 0;
+                eventEmitter.emit('status-change', { connected: false, activeConnections: 0 });
+            });
+        }
+    });
+}
+
+function setupSocketHandlers(socket) {
+    socket.on('data', async (data) => {
+        receiveBuffer = Buffer.concat([receiveBuffer, data]);
+        processBuffer(socket);
+    });
+
+    socket.on('error', (err) => {
+        log.error('PMS Socket error:', err);
+    });
+
+    socket.on('close', () => {
+        log.info('PMS Socket disconnected');
+        receiveBuffer = Buffer.alloc(0);
     });
 }
 
@@ -55,10 +103,6 @@ function processBuffer(socket) {
     let stxIndex = receiveBuffer.indexOf(STX);
 
     while (stxIndex !== -1) {
-        // We found an STX. Look for ETX after it.
-        // Needs to have at least <STX> X <ETX> <LRC> (4 bytes)
-        // But minimal empty record <STX><ETX><LRC> is 3 bytes
-
         let ethIndex = -1;
         // Search for ETX after STX
         for (let i = stxIndex + 1; i < receiveBuffer.length; i++) {
@@ -79,11 +123,10 @@ function processBuffer(socket) {
                 // Validate Frame
                 if (parser.validateFrame(frame)) {
                     // Good frame
-                    socket.write(Buffer.from([ACK]));
+                    if (!socket.destroyed) socket.write(Buffer.from([ACK]));
 
                     // Parse Content (Exclude STX, ETX, LRC)
                     const contentValues = frame.slice(1, ethIndex); // From STX+1 to ETX-1
-                    // Convert to string. Protocol implies ASCII text inside
                     const contentStr = contentValues.toString('ascii');
 
                     handleMessage(socket, contentStr);
@@ -91,7 +134,7 @@ function processBuffer(socket) {
                 } else {
                     // Bad checksum
                     log.warn('Invalid LRC received');
-                    socket.write(Buffer.from([NAK]));
+                    if (!socket.destroyed) socket.write(Buffer.from([NAK]));
                 }
 
                 // Remove processed frame from buffer
@@ -100,24 +143,19 @@ function processBuffer(socket) {
                 // Search for next STX
                 stxIndex = receiveBuffer.indexOf(STX);
             } else {
-                // We have ETX but waiting for LRC byte
                 break; // Wait for more data
             }
         } else {
-            // valid STX but no ETX yet
             break; // Wait for more data
         }
     }
 
-    // Cleanup: If buffer gets too large without valid STX, might want to discard garbage
-    // For now, if no STX found, discard all
+    // Cleanup garbage
     if (receiveBuffer.indexOf(STX) === -1 && receiveBuffer.length > 0) {
-        // Check if we have ENQ (0x05) - Inquiry
         if (receiveBuffer.includes(ENQ)) {
-            socket.write(Buffer.from([ACK])); // Or resend last message
+            if (!socket.destroyed) socket.write(Buffer.from([ACK]));
             receiveBuffer = Buffer.alloc(0);
         } else {
-            // Trash garbage data to prevent memory leak
             if (receiveBuffer.length > 1024) {
                 receiveBuffer = Buffer.alloc(0);
             }
@@ -131,40 +169,24 @@ async function handleMessage(socket, contentStr) {
     const parsed = parser.parseData(contentStr);
     if (!parsed) return;
 
-    const { type, fields } = parsed;
+    const { type } = parsed;
 
     switch (type) {
         case RECORD_TYPES.LINK_START: // LS
-            // Reply with our own Link Start or Link Description
-            // PMS Protocol: <2> Link Description – System to PMS (When receive LinkStart)
-            // Respond with LD
             sendLinkDescription(socket);
             break;
 
         case RECORD_TYPES.LINK_ALIVE: // LA
-            // Just ACK was already sent. 
-            // Maybe update "last seen" timestamp
             break;
 
         case RECORD_TYPES.POSTING: // PS
             await processor.processCDR(parsed);
-            break;
-
-        case RECORD_TYPES.GUEST_IN: // GI
-            // TODO: Update Extension/Room status
-            break;
-
-        case RECORD_TYPES.GUEST_OUT: // GO
-            // TODO: Clear Extension/Room
             break;
     }
 }
 
 function sendLinkDescription(socket) {
     const date = new Date();
-    // Format: LD|DAyymmdd|TIhhmmss|V#xxxxxx|IFPB
-
-    // Simple helper functions for date format
     const yymmdd = date.toISOString().slice(2, 10).replace(/-/g, '');
     const hhmmss = date.toTimeString().slice(0, 8).replace(/:/g, '');
 
@@ -176,14 +198,6 @@ function sendFrame(socket, msgStr) {
     if (!socket || socket.destroyed) return;
 
     const msgBuf = Buffer.from(msgStr, 'ascii');
-    // Calculate LRC: XOR of msgBuf (which is [Record ID]...[End of Data])
-    // Frame: <STX> [Msg] <ETX> <LRC>
-    // LRC covers [Msg] + <ETX>
-
-    // Wait, let's re-read protocol for LRC coverage.
-    // " <LRC> == XOR all data from [Record ID type] to <ETX> "
-    // So Data + ETX.
-
     const etxBuf = Buffer.from([ETX]);
     const dataToHash = Buffer.concat([msgBuf, etxBuf]);
     const lrc = parser.calculateLRC(dataToHash);
@@ -197,21 +211,37 @@ function sendFrame(socket, msgStr) {
 }
 
 async function stop() {
-    if (!isRunning || !server) return true;
+    if (!isRunning && !server) return true;
 
     return new Promise((resolve) => {
-        server.close(() => {
-            log.info('PMS Server stopped');
+        if (config.mode === 'client') {
+            if (server && !server.destroyed) {
+                server.end();
+                server.destroy();
+            }
+            log.info('PMS Client stopped');
             isRunning = false;
             server = null;
             resolve(true);
-        });
+        } else {
+            if (server) {
+                server.close(() => {
+                    log.info('PMS Server stopped');
+                    isRunning = false;
+                    server = null;
+                    resolve(true);
+                });
+            } else {
+                resolve(true);
+            }
+        }
     });
 }
 
 function getStatus() {
     return {
         running: isRunning,
+        connected: activeConnections > 0,
         port: config.port,
         host: config.host
     };
@@ -221,5 +251,6 @@ module.exports = {
     start,
     stop,
     getStatus,
-    sendFrame // Export for testing/manual push
+    sendFrame,
+    events: eventEmitter
 };

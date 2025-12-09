@@ -22,7 +22,7 @@ export default function Sidebar() {
         { to: '/phonebook', icon: BookOpen, label: 'Phonebook' },
         { to: '/reports', icon: FileText, label: 'Reports' },
         { to: '/charts', icon: BarChart3, label: 'Analytics' },
-        { to: '/costs', icon: DollarSign, label: 'Tariffs & Costs' },
+        { to: '/costs', icon: DollarSign, label: 'Costs & Tariffs' },
         { to: '/settings', icon: Settings, label: 'Settings' },
     ];
 
