@@ -1,0 +1,327 @@
+// ANTLR4 grammar for the PMS Protocol
+// Based on specification with STX/ETX framing and LRC checksums
+grammar PMSProtocol;
+
+options {
+  language = Java;
+}
+
+@header {
+// PMS Protocol Grammar - Generated
+// Supports bidirectional communication between PABX and PMS systems
+}
+
+// --------------------------
+// Parser Rules
+// --------------------------
+
+// Complete message with framing
+message
+    : STX messageBody ETX LRC EOF
+    ;
+
+messageBody
+    : linkMsg
+    | guestMsg
+    | roomMsg
+    | wakeupMsg
+    | posMsg
+    ;
+
+// --------------------------
+// A. Link Control Messages
+// --------------------------
+
+linkMsg
+    : linkStart
+    | linkDescription
+    | linkRecord
+    | linkAlive
+    | linkEnd
+    ;
+
+linkStart
+    : LS PIPE DA date PIPE TI time PIPE
+    ;
+
+linkDescription
+    : LD PIPE DA date PIPE TI time PIPE VHASH version PIPE IF ifType PIPE
+    ;
+
+linkRecord
+    : LR PIPE RI recordId PIPE FL fieldList PIPE
+    ;
+
+linkAlive
+    : LA PIPE DA date PIPE TI time PIPE
+    ;
+
+linkEnd
+    : LE PIPE DA date PIPE TI time PIPE
+    ;
+
+// --------------------------
+// D. Guest Data Messages
+// --------------------------
+
+guestMsg
+    : guestCheckIn
+    | guestCheckOut
+    | guestChange
+    ;
+
+guestCheckIn
+    : GI PIPE roomNumber PIPE guestName PIPE guestLanguage PIPE guestVIP PIPE
+    ;
+
+guestCheckOut
+    : GO PIPE roomNumber PIPE
+    ;
+
+guestChange
+    : GC PIPE roomNumber PIPE oldRoomNumber PIPE guestName PIPE guestLanguage PIPE guestVIP PIPE
+    ;
+
+// --------------------------
+// E. Room Data Messages
+// --------------------------
+
+roomMsg
+    : roomEquipment
+    ;
+
+roomEquipment
+    : RE PIPE roomNumber PIPE dndStatus PIPE roomStatus PIPE messageLight PIPE
+    ;
+
+// --------------------------
+// F. Wakeup Messages
+// --------------------------
+
+wakeupMsg
+    : wakeupRequest
+    | wakeupClear
+    | wakeupAnswer
+    ;
+
+wakeupRequest
+    : WR PIPE roomNumber PIPE DA date PIPE TI time PIPE
+    ;
+
+wakeupClear
+    : WC PIPE roomNumber PIPE DA date PIPE TI time PIPE
+    ;
+
+wakeupAnswer
+    : WA PIPE roomNumber PIPE DA date PIPE TI time PIPE answerStatus PIPE
+    ;
+
+// --------------------------
+// G. Point of Sale / Mini-bar Messages
+// --------------------------
+
+posMsg
+    : posting
+    | miniBarPosting
+    ;
+
+posting
+    : PS PIPE roomNumber PIPE postingType PIPE meteringPulse PIPE duration PIPE DA date PIPE TI time PIPE dialDigits PIPE
+    ;
+
+miniBarPosting
+    : PS PIPE roomNumber PIPE PTM PIPE minibarArticle PIPE itemNumber PIPE DA date PIPE TI time PIPE
+    ;
+
+// --------------------------
+// Field Components
+// --------------------------
+
+roomNumber
+    : RN DIGITS
+    ;
+
+oldRoomNumber
+    : RO DIGITS
+    ;
+
+guestName
+    : GN NAME
+    ;
+
+guestLanguage
+    : GL LANG_CODE
+    ;
+
+guestVIP
+    : GV VIP_STATUS
+    ;
+
+dndStatus
+    : DN YN_STATUS
+    ;
+
+roomStatus
+    : RS ROOM_STATUS_CODE
+    ;
+
+messageLight
+    : ML YN_STATUS
+    ;
+
+answerStatus
+    : AS ANSWER_CODE
+    ;
+
+postingType
+    : PT PT_TYPE
+    ;
+
+meteringPulse
+    : MP DIGITS
+    ;
+
+duration
+    : DU time
+    ;
+
+dialDigits
+    : DD DIGITS
+    ;
+
+minibarArticle
+    : MA NAME
+    ;
+
+itemNumber
+    : MNUM ITEM_ID
+    ;
+
+// Link Description fields
+version
+    : VERSION_ID
+    ;
+
+ifType
+    : IF_TYPE
+    ;
+
+recordId
+    : RECORD_ID
+    ;
+
+fieldList
+    : FIELD_CODE+
+    ;
+
+// Date and Time
+date
+    : DATE_TOKEN
+    ;
+
+time
+    : TIME_TOKEN
+    ;
+
+// --------------------------
+// Lexer Rules (Tokens)
+// --------------------------
+
+// Control bytes
+STX         : '\u0002' ;  // Start of Text (Hex 02)
+ETX         : '\u0003' ;  // End of Text (Hex 03)
+ACK         : '\u0006' ;  // Acknowledgement (Hex 06) - not in grammar but in protocol
+NAK         : '\u0015' ;  // Negative Ack (Hex 15)
+LRC         : [0-9A-Fa-f] [0-9A-Fa-f] ;  // Longitudinal Redundancy Check
+
+// Message type tokens
+LS          : 'LS' ;
+LD          : 'LD' ;
+LR          : 'LR' ;
+LA          : 'LA' ;
+LE          : 'LE' ;
+
+GI          : 'GI' ;
+GO          : 'GO' ;
+GC          : 'GC' ;
+
+RE          : 'RE' ;
+
+WR          : 'WR' ;
+WC          : 'WC' ;
+WA          : 'WA' ;
+
+PS          : 'PS' ;
+
+// Field identifier tokens
+RN          : 'RN' ;
+RO          : 'RO' ;
+GN          : 'GN' ;
+GL          : 'GL' ;
+GV          : 'GV' ;
+
+DN          : 'DN' ;
+RS          : 'RS' ;
+ML          : 'ML' ;
+
+DA          : 'DA' ;
+TI          : 'TI' ;
+
+VHASH       : 'V#' ;
+IF          : 'IF' ;
+RI          : 'RI' ;
+FL          : 'FL' ;
+
+PT          : 'PT' ;
+PTM         : 'PTM' ;  // Mini-bar posting type
+MP          : 'MP' ;
+DU          : 'DU' ;
+DD          : 'DD' ;
+MA          : 'MA' ;
+MNUM        : 'M#' ;
+
+AS          : 'AS' ;
+
+// Separator
+PIPE        : '|' ;
+
+// Code values
+LANG_CODE   : 'EA' | 'FR' | 'GE' | 'IT' | 'JA' | 'SP' | 'CH' ;
+VIP_STATUS  : 'Y' | 'N' ;
+YN_STATUS   : 'Y' | 'N' ;
+PT_TYPE     : 'T' | 'C' | 'M' ;
+ANSWER_CODE : 'BY' | 'NR' ;  // Busy, No Response
+IF_TYPE     : 'PB' ;  // PABX interface type
+
+// Room status codes (1-6)
+ROOM_STATUS_CODE
+    : [1-6]
+    ;
+
+// Record IDs used in LR messages
+RECORD_ID
+    : 'GI' | 'GO' | 'GC' | 'RE' | 'WR' | 'WC' | 'WA' | 'PS'
+    ;
+
+// Field codes used in FL field lists
+FIELD_CODE
+    : 'RN' | 'GN' | 'GL' | 'GV' | 'RO' 
+    | 'DA' | 'TI' | 'DN' | 'RS' | 'ML' 
+    | 'AS' | 'PT' | 'MP' | 'DU' | 'DD'
+    | 'MA' | 'PTM' | MNUM
+    ;
+
+// Data tokens
+DATE_TOKEN  : DIGIT DIGIT DIGIT DIGIT DIGIT DIGIT ;  // yymmdd
+TIME_TOKEN  : DIGIT DIGIT DIGIT DIGIT DIGIT DIGIT ;  // hhmmss
+DIGITS      : DIGIT+ ;
+VERSION_ID  : [A-Za-z0-9 ]+ ;  // Version like "PMS3"
+ITEM_ID     : [A-Za-z0-9\-]+ ;  // Item number with possible dash
+NAME        : ~[|\u0002\u0003\r\n]+ ;  // Any chars except pipe, STX, ETX, newlines
+
+// Basic fragments
+fragment DIGIT : [0-9] ;
+
+// Whitespace handling (space may appear after field identifiers in examples)
+WS          : [ \t]+ -> skip ;
+NL          : [\r\n]+ -> skip ;
